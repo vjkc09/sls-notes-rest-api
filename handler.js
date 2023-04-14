@@ -1,14 +1,15 @@
 "use strict"
-const DynamoDB = require("aws-sdk/clients/dynamodb")
+const DynamoDB = require("@aws-sdk/client-dynamodb")
+const {
+  DynamoDBDocumentClient,
+  PutCommand,
+  UpdateCommand,
+  DeleteCommand,
+  ScanCommand,
+} = require("@aws-sdk/lib-dynamodb")
 
-const documentClient = new DynamoDB.DocumentClient({ 
-  region: "us-east-1",
-  maxRetries: 3,
-  httpOptions: {
-    timeout: 5000
-  }
-})
-
+const client = new DynamoDB({ region: process.env.AWS_REGION })
+const ddbDocClient = DynamoDBDocumentClient.from(client)
 const NOTES_TABLE_NAME = process.env.NOTES_TABLE_NAME
 
 const send = (statusCode, data) => {
@@ -18,7 +19,6 @@ const send = (statusCode, data) => {
   }
 }
 module.exports.createNote = async (event, context, cb) => {
-  context.callbackWaitsForEmptyEventLoop = false
   let data = JSON.parse(event.body)
   try {
     const params = {
@@ -30,15 +30,14 @@ module.exports.createNote = async (event, context, cb) => {
       },
       ConditionExpression: "attribute_not_exists(notesId)",
     }
-    await documentClient.put(params).promise()
-    cb(null, send(201, data))
+    await ddbDocClient.send(new PutCommand(params))
+    return send(201, data)
   } catch (err) {
-    cb(null, send(500, err.message))
+    return send(500, data)
   }
 }
 
 module.exports.updateNote = async (event, context, cb) => {
-  context.callbackWaitsForEmptyEventLoop = false
   let notesId = event.pathParameters.id
   let data = JSON.parse(event.body)
   try {
@@ -56,15 +55,14 @@ module.exports.updateNote = async (event, context, cb) => {
       },
       ConditionExpression: "attribute_exists(notesId)",
     }
-    await documentClient.update(params).promise()
-    cb(null, send(200, data))
+    await ddbDocClient.send(new UpdateCommand(params))
+    return send(200, data)
   } catch (err) {
-    cb(null, send(500, err.message))
+    return send(500, err.message)
   }
 }
 
 module.exports.deleteNote = async (event, context, cb) => {
-  context.callbackWaitsForEmptyEventLoop = false
   let notesId = event.pathParameters.id
   try {
     const params = {
@@ -72,23 +70,22 @@ module.exports.deleteNote = async (event, context, cb) => {
       Key: { notesId },
       ConditionExpression: "attribute_exists(notesId)",
     }
-    await documentClient.delete(params).promise()
-    cb(null, send(200, notesId))
+    await ddbDocClient.send(new DeleteCommand(params))
+    return send(200, notesId)
   } catch (err) {
-    cb(null, send(500, err.message))
+    return send(500, err.message)
   }
 }
 
 module.exports.getAllNotes = async (event, context, cb) => {
-  context.callbackWaitsForEmptyEventLoop = false
   console.log(JSON.stringify(event))
   try {
     const params = {
       TableName: NOTES_TABLE_NAME,
     }
-    const notes = await documentClient.scan(params).promise()
-    cb(null, send(200, notes))
+    await ddbDocClient.send(new ScanCommand(params))
+    return send(200, notes)
   } catch (err) {
-    cb(null, send(500, err.message))
+    return send(500, err.message)
   }
 }

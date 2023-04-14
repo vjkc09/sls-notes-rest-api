@@ -4,13 +4,16 @@ frameworkVersion: '3'
 
 provider:
   name: aws
-  runtime: nodejs12.x
-  stage: dev
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
   region: us-east-1
 
 functions:
   authorizer: 
     handler: authorizer.handler
+    environment:
+      COGNITO_USERPOOL_ID: !Ref cognitoUserPool
+      COGNITO_WEB_CLIENT_ID: !Ref cognitoUserPoolWebclient
 
   createNote:
     handler: handler.createNote
@@ -74,7 +77,12 @@ functions:
       - http:
           method: get
           path: notes
-          authorizer: authorizer          
+          authorizer: 
+            name: userpool_authorizer
+            type: COGNITO_USER_POOLS            
+            arn: !GetAtt cognitoUserPool.Arn #obtener variables de entorno de AWS Systems Manager
+
+             
 
 plugins:
   - serverless-iam-roles-per-function
@@ -82,15 +90,5 @@ plugins:
 # you can add CloudFormation resource templates here
 
 resources:
-  Resources:
-    notesTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: notes
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: notesId
-            AttributeType: S
-        KeySchema:
-          - AttributeName: notesId
-            KeyType: HASH
+  Resources: ${file(resources.yml)}
+    
