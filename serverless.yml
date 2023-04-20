@@ -4,7 +4,7 @@ frameworkVersion: '3'
 
 provider:
   name: aws
-  runtime: nodejs18.x
+  runtime: nodejs16.x
   stage: ${opt:stage, 'dev'}
   region: us-east-1
 
@@ -77,12 +77,10 @@ functions:
       - http:
           method: get
           path: notes
-          authorizer: 
+          authorizer:          
             name: userpool_authorizer
             type: COGNITO_USER_POOLS            
-            arn: !GetAtt cognitoUserPool.Arn #obtener variables de entorno de AWS Systems Manager
-
-             
+            arn: !GetAtt cognitoUserPool.Arn #obtener variables de entorno de AWS Systems Manager             
 
 plugins:
   - serverless-iam-roles-per-function
